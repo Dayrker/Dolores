@@ -145,8 +145,9 @@ class DoloresApp:
     # ---- 交互回调 ----
     def _on_poke(self) -> None:
         self.pet_state.note_interaction()
-        # 戳一下就高兴一下，并自发说句话
+        # 戳一下就高兴一下，蹦跶一下，并自发说句话
         self.ui.set_mood("excited")
+        self.ui.trigger_action("bounce")
         self._dispatch(BrainRequest(
             kind="event", event="poked", mood="excited",
             system_summary=self._summary(),
@@ -191,6 +192,11 @@ class DoloresApp:
         if self._pending_seq < 0:  # 没有在途请求时才考虑自发
             intent: Optional[Intent] = self.autonomy.tick(state, self.pet_state)
             if intent is not None:
+                # 问候时挥手，兴奋时蹦跶——让自主行为更有“身体语言”
+                if intent.kind == "greeting":
+                    self.ui.trigger_action("wave")
+                elif intent.mood == "excited":
+                    self.ui.trigger_action("bounce")
                 self._dispatch(BrainRequest(
                     kind=intent.kind, mood=intent.mood, event=intent.event,
                     system_summary=state.summary(), history=list(self.history),

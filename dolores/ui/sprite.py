@@ -152,3 +152,118 @@ def render_frame(mood: str, size: int, theme: str, phase: float) -> Image.Image:
     canvas = Image.new("RGBA", (size, size + 8), (0, 0, 0, 0))
     canvas.alpha_composite(base, (0, 4 + bob))
     return canvas
+
+
+# ---- 动画控制器：统一图片包与矢量两种来源 ----
+
+# 矢量回退时，把“动作”近似映射到“情绪表情”
+_ACTION_TO_MOOD = {
+    "idle": None,        # 用当前 mood
+    "bounce": "excited",
+    "wave": "happy",
+    "sleep": "sleepy",
+    "panic": "panic",
+    "blink": None,
+}
+
+
+class Animator:
+    """驱动立绘动画。优先用图片立绘包；无包则回退矢量绘制。
+
+    - set_mood(mood)：随情绪切换循环动作（图片包）或表情（矢量）。
+    - trigger(action)：播放一次性动作（如 poke→bounce、greeting→wave），播完回到 idle。
+    - next_frame()：按各动作自身 fps 与 60ms tick 推进，返回当前帧 RGBA 图。
+    """
+
+    TICK_MS = 60
+
+    def __init__(self, size: int, theme: str, pack=None):
+        self.size = size
+        self.theme = theme
+        self.pack = pack  # SpritePack 或 None
+        self.mood = "happy"
+        self._action = "idle"
+        self._oneshot = False          # 当前动作是否为一次性
+        self._frame_idx = 0
+        self._accum_ms = 0.0
+        self._phase = 0.0              # 矢量浮动相位
+
+    # ---- 状态切换 ----
+    def set_mood(self, mood: str) -> None:
+        if mood:
+            self.mood = mood
+        if self.pack is not None and not self._oneshot:
+            action = self.pack.action_for_mood(self.mood)
+            if action != self._action:
+                self._action = action
+                self._frame_idx = 0
+                self._accum_ms = 0.0
+
+    def trigger(self, action: str) -> None:
+        """播放一次性动作；图片包无该动作则忽略。"""
+        if self.pack is None:
+            # 矢量模式：把动作近似成一个临时情绪表情
+            mood = _ACTION_TO_MOOD.get(action)
+            if mood:
+                self.mood = mood
+            return
+        if not self.pack.has_action(action):
+            return
+        self._action = action
+        self._oneshot = not self.pack.loop(action)
+        self._frame_idx = 0
+        self._accum_ms = 0.0
+
+    # ---- 出帧 ----
+    def next_frame(self) -> Image.Image:
+        if self.pack is not None:
+            return self._next_image_frame()
+        return self._next_vector_frame()
+
+    def _next_image_frame(self) -> Image.Image:
+        action = self._action if self.pack.has_action(self._action) else "idle"
+        n = max(1, self.pack.frame_count(action))
+        fps = max(1, self.pack.fps(action))
+        self._accum_ms += self.TICK_MS
+        if self._accum_ms >= 1000.0 / fps:
+            self._accum_ms = 0.0
+            self._frame_idx += 1
+            if self._frame_idx >= n:
+                if self._oneshot:
+                    # 一次性动作播完 → 回到情绪对应的循环动作
+                    self._oneshot = False
+                    self._action = self.pack.action_for_mood(self.mood)
+                    self._frame_idx = 0
+                else:
+                    self._frame_idx = 0
+                action = self._action if self.pack.has_action(self._action) else "idle"
+        img = self.pack.frame(action, self._frame_idx, self.size)
+        if img is None:
+            # 帧缺失兜底：矢量
+            return render_frame(self.mood, self.size, self.theme, self._phase)
+        return img
+
+    def _next_vector_frame(self) -> Image.Image:
+        self._phase = (self._phase + 0.04) % 1.0
+        return render_frame(self.mood, self.size, self.theme, self._phase)
+
+
+def make_animator(cfg) -> Animator:
+    """按配置创建 Animator：image/auto 尝试加载图片包，失败回退矢量。"""
+    size = cfg.get("ui.pet_size", 140)
+    theme = cfg.get("ui.theme", "pink")
+    mode = str(cfg.get("ui.sprite.mode", "auto")).lower()
+
+    pack = None
+    if mode in ("image", "auto"):
+        try:
+            from .sprite_loader import load_pack
+
+            assets_dir = cfg.abspath(cfg.get("ui.sprite.asset_dir", "assets/sprites"))
+            pack = load_pack(assets_dir, cfg.get("ui.sprite.pack", "default"))
+        except Exception:  # noqa: BLE001
+            pack = None
+        if pack is None and mode == "image":
+            # 显式要求图片但加载失败 → 仍回退矢量，保证能跑
+            pass
+    return Animator(size=size, theme=theme, pack=pack)

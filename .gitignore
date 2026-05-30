@@ -18,6 +18,14 @@ dolores.log
 .idea/
 .DS_Store
 
+# Windows 安装产生的虚拟环境
+.venv/
+venv/
+
 # 临时
 /tmp/
 *.tmp
+
+# 立绘：提交内置 default 包，用户自定义包不入库
+assets/sprites/*/
+!assets/sprites/default/

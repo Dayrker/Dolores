@@ -59,6 +59,10 @@ class PetWindow:
         self.canvas.pack()
         self._img_id = self.canvas.create_image(self.size // 2, (self.size + 8) // 2)
 
+        # 动画控制器（图片立绘包优先，缺失回退矢量）
+        self.animator = sprite_mod.make_animator(cfg)
+        self.animator.set_mood(self.mood)
+
         # 子窗
         self.bubble = Bubble(
             self.root,
@@ -144,14 +148,13 @@ class PetWindow:
 
     # ---- 立绘渲染与动画 ----
     def _render_sprite(self) -> None:
-        frame = sprite_mod.render_frame(self.mood, self.size, self.theme, self._phase)
+        frame = self.animator.next_frame()
         self._photo = ImageTk.PhotoImage(frame)
         self.canvas.itemconfigure(self._img_id, image=self._photo)
 
     def _animate(self) -> None:
         if not self._anim_running:
             return
-        self._phase = (self._phase + 0.04) % 1.0
         self._render_sprite()
         self.root.after(60, self._animate)
 
@@ -159,7 +162,11 @@ class PetWindow:
     def set_mood(self, mood: str) -> None:
         if mood and mood != self.mood:
             self.mood = mood
-            self._render_sprite()
+        self.animator.set_mood(mood)
+
+    def trigger_action(self, action: str) -> None:
+        """播放一次性动作（如 bounce/wave）。"""
+        self.animator.trigger(action)
 
     def say(self, text: str, duration_ms: Optional[int] = None) -> None:
         if duration_ms is None:
