@@ -8,13 +8,20 @@
 
   "model": {
     "enabled": true,
+    "backend": "auto",
     "path": "models/Qwen3.5-0.8B",
     "device": "auto",
     "max_new_tokens": 80,
     "temperature": 0.85,
     "top_p": 0.9,
     "load_in_background": true,
-    "_comment": "enabled=true 时启动会尝试加载本地模型；当前 transformers 不支持 qwen3_5，会自动回退到 template 大脑。一旦升级 transformers 支持该架构即自动启用。"
+    "ollama": {
+      "host": "http://127.0.0.1:11434",
+      "model": "qwen3:0.6b",
+      "keep_alive": "5m",
+      "request_timeout": 60
+    },
+    "_comment": "backend: auto|ollama|transformers|template。auto 优先 Ollama，其次本地 transformers(Qwen3.5)，都不可用则模板大脑。Windows 一键安装默认 ollama；ollama.model 由安装脚本按实际拉取的标签写入。"
   },
 
   "ui": {
@@ -26,7 +33,12 @@
     "bubble_duration_ms": 6500,
     "theme": "pink",
     "font_family": "",
-    "click_through_idle": false
+    "click_through_idle": false,
+    "sprite": {
+      "mode": "auto",
+      "asset_dir": "assets/sprites",
+      "pack": "default"
+    }
   },
 
   "behavior": {

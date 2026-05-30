@@ -26,12 +26,19 @@ DEFAULTS: Dict[str, Any] = {
     },
     "model": {
         "enabled": True,
+        "backend": "auto",
         "path": "models/Qwen3.5-0.8B",
         "device": "auto",
         "max_new_tokens": 80,
         "temperature": 0.85,
         "top_p": 0.9,
         "load_in_background": True,
+        "ollama": {
+            "host": "http://127.0.0.1:11434",
+            "model": "qwen3:0.6b",
+            "keep_alive": "5m",
+            "request_timeout": 60,
+        },
     },
     "ui": {
         "pet_size": 140,
@@ -43,6 +50,11 @@ DEFAULTS: Dict[str, Any] = {
         "theme": "pink",
         "font_family": "",
         "click_through_idle": False,
+        "sprite": {
+            "mode": "auto",
+            "asset_dir": "assets/sprites",
+            "pack": "default",
+        },
     },
     "behavior": {
         "sensor_interval_ms": 2000,
