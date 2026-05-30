@@ -1,7 +1,12 @@
-"""文字渲染：用 Pillow 直接把中文/颜文字画成图片，绕开 conda Tk 无 Xft 的限制。
+"""文字渲染：用 Pillow 直接把中文/颜文字画成图片。
 
-见项目记录：torch2.10 的 Tk 不支持 Xft，只能渲染 'fixed'，无法显示中文/emoji。
+WSL 的 conda Tk 不支持 Xft（只能渲染 'fixed'），无法显示中文/emoji；
+原生 Windows 的 Tk 虽可显示，但统一走 Pillow 渲染更可控、跨平台一致。
 所有需要显示文字的地方都通过本模块拿到 PIL.Image / ImageTk.PhotoImage。
+
+字体按平台发现：
+- Windows：C:\\Windows\\Fonts 下的 msyh.ttc / simhei.ttf / seguiemj.ttf 等。
+- Linux/WSL：/mnt/c/Windows/Fonts（WSL 可读）+ ~/.local/share/fonts + 常见 Linux 路径。
 """
 from __future__ import annotations
 
@@ -11,23 +16,49 @@ from typing import List, Optional, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 
-# 候选字体路径（按优先级）。Windows 侧字体在 WSL 下可直接读。
-_CJK_CANDIDATES: List[str] = [
-    "/mnt/c/Windows/Fonts/msyh.ttc",       # 微软雅黑
-    "/mnt/c/Windows/Fonts/msyhl.ttc",
-    "/mnt/c/Windows/Fonts/simhei.ttf",     # 黑体
-    "/mnt/c/Windows/Fonts/simsun.ttc",     # 宋体
-    os.path.expanduser("~/.local/share/fonts/msyh.ttc"),
-    os.path.expanduser("~/.local/share/fonts/simhei.ttf"),
-    "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # 兜底（无中文但不崩）
-]
 
-_EMOJI_CANDIDATES: List[str] = [
-    "/mnt/c/Windows/Fonts/seguiemj.ttf",
-    "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
-]
+def _win_fonts_dir() -> str:
+    return os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "Fonts")
+
+
+def _cjk_candidates() -> List[str]:
+    """按平台返回中文字体候选（优先级从高到低）。"""
+    if os.name == "nt":
+        d = _win_fonts_dir()
+        return [
+            os.path.join(d, "msyh.ttc"),     # 微软雅黑
+            os.path.join(d, "msyhl.ttc"),
+            os.path.join(d, "simhei.ttf"),   # 黑体
+            os.path.join(d, "simsun.ttc"),   # 宋体
+        ]
+    # Linux / WSL
+    return [
+        "/mnt/c/Windows/Fonts/msyh.ttc",
+        "/mnt/c/Windows/Fonts/msyhl.ttc",
+        "/mnt/c/Windows/Fonts/simhei.ttf",
+        "/mnt/c/Windows/Fonts/simsun.ttc",
+        os.path.expanduser("~/.local/share/fonts/msyh.ttc"),
+        os.path.expanduser("~/.local/share/fonts/simhei.ttf"),
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # 兜底（无中文但不崩）
+    ]
+
+
+def _bold_candidates() -> List[str]:
+    if os.name == "nt":
+        d = _win_fonts_dir()
+        return [os.path.join(d, "msyhbd.ttc"), os.path.join(d, "simhei.ttf")]
+    return ["/mnt/c/Windows/Fonts/msyhbd.ttc", "/mnt/c/Windows/Fonts/simhei.ttf"]
+
+
+def _emoji_candidates() -> List[str]:
+    if os.name == "nt":
+        return [os.path.join(_win_fonts_dir(), "seguiemj.ttf")]
+    return [
+        "/mnt/c/Windows/Fonts/seguiemj.ttf",
+        "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+    ]
 
 
 def _first_existing(paths: List[str]) -> Optional[str]:
@@ -37,8 +68,8 @@ def _first_existing(paths: List[str]) -> Optional[str]:
     return None
 
 
-CJK_FONT_PATH = _first_existing(_CJK_CANDIDATES)
-EMOJI_FONT_PATH = _first_existing(_EMOJI_CANDIDATES)
+CJK_FONT_PATH = _first_existing(_cjk_candidates())
+EMOJI_FONT_PATH = _first_existing(_emoji_candidates())
 
 
 @lru_cache(maxsize=4)
@@ -93,9 +124,7 @@ def get_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     """按字号取一个中文字体对象（带缓存）。找不到则用 PIL 默认位图字体。"""
     path = CJK_FONT_PATH
     if bold:
-        bold_path = _first_existing(
-            ["/mnt/c/Windows/Fonts/msyhbd.ttc", "/mnt/c/Windows/Fonts/simhei.ttf"]
-        )
+        bold_path = _first_existing(_bold_candidates())
         path = bold_path or path
     if path:
         try:

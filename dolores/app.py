@@ -21,7 +21,7 @@ from .brain import BrainRequest, create_brain
 from .brain.factory import HybridBrain
 from .config import Config, load_config
 from .personality import Personality, PetState
-from .sensors import SystemSensor, SystemState
+from .sensors import SystemState, create_sensor
 from .ui import text_renderer as _tr  # 触发字体探测（也用于 sanitize）
 from .ui.pet_window import PetWindow
 
@@ -98,7 +98,7 @@ class DoloresApp:
 
         # 核心组件
         night = self.cfg.get("behavior.quiet_hours", {}) or {}
-        self.sensor = SystemSensor(
+        self.sensor = create_sensor(
             night_start=night.get("start", 1), night_end=night.get("end", 6)
         )
         self.personality = Personality(self.cfg)
