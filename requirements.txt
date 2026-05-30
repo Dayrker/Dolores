@@ -1,0 +1,22 @@
+# Dolores 依赖说明
+#
+# 本项目刻意保持「零额外安装」：以下依赖在目标 conda 环境
+#   /home/dayrker/anaconda3/envs/torch2.10
+# 中均已具备。此文件仅作记录与在可联网环境下的复现参考。
+#
+# 运行时实际需要：
+#   - Python 3.10
+#   - 标准库 tkinter（GUI）
+#   - Pillow（文字/立绘渲染，绕开 Tk 字体限制）—— 必需
+#
+# 可选（用于本地大模型后端，缺失则自动回退模板大脑）：
+#   - torch
+#   - transformers（需支持 qwen3_5 架构的版本才能加载本项目模型）
+#
+# 系统指标用 /proc 直接读取，不需要 psutil。
+
+Pillow>=9.0
+
+# --- 可选：本地 LLM 后端 ---
+# torch>=2.0
+# transformers>=4.57   # 需支持 Qwen3.5(qwen3_5)；4.56.1 不支持

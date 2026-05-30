@@ -1,0 +1,23 @@
+# 模型权重不入库（很大，本地放在 models/ 下）
+models/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# 日志与运行产物
+*.log
+dolores.log
+
+# 编辑器/系统
+.vscode/
+.idea/
+.DS_Store
+
+# 临时
+/tmp/
+*.tmp
