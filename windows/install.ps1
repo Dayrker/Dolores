@@ -1,17 +1,17 @@
-﻿<#
-  Dolores 桌面萌宠 - Windows 一键安装脚本
-  做的事：
-    1. 找/装 真正的 Python（缺失则用 winget 安装 Python 3.12）
-    2. 在项目下创建虚拟环境 .venv 并装依赖（Pillow 必装）
-    3. 按所选后端准备：
-         - ollama（默认）：装 Ollama + 拉取小模型 + 写回 config
-         - transformers：装 torch/transformers + 从 WSL 复制本地 Qwen3.5 模型
-    4. 生成立绘（若缺）
-    5. 写 config.json（合并，不覆盖用户其它设置）
-    6. 创建启动器 run_dolores.bat + 桌面快捷方式
-    7. 冒烟自检
+<#
+  Dolores Desktop Pet - Windows one-click installer
+  Steps:
+    1. Find/install real Python (winget Python 3.12 if missing)
+    2. Create .venv and install deps (Pillow required)
+    3. Backend setup:
+         - ollama (default): install Ollama + pull a small model + write config
+         - transformers: install torch/transformers + copy local Qwen3.5 from WSL
+    4. Generate sprites if missing
+    5. Write config.json (merge, keep other user settings)
+    6. Create launcher run_dolores.bat + Desktop shortcut
+    7. Import smoke test
 
-  用法（在 windows\ 目录或双击 install.bat）：
+  Usage (in windows\ or double-click install.bat):
     install.ps1 [-Backend ollama|transformers] [-OllamaModel <tag>] [-NoShortcut]
 #>
 param(
@@ -27,15 +27,15 @@ function Ok($m)   { Write-Host "[OK] $m" -ForegroundColor Green }
 function Warn($m) { Write-Host "[!] $m" -ForegroundColor Yellow }
 function Die($m)  { Write-Host "[X] $m" -ForegroundColor Red; exit 1 }
 
-# ---------- Step 0：定位项目根 ----------
+# ---------- Step 0: locate project root ----------
 $Root = (Resolve-Path "$PSScriptRoot\..").Path
-Info "项目根目录：$Root"
+Info "Project root: $Root"
 Set-Location $Root
 
-# ---------- Step 1：找/装真正的 Python ----------
+# ---------- Step 1: find/install real Python ----------
 function Test-RealPython($exe) {
   if (-not $exe) { return $false }
-  if ($exe -like "*WindowsApps*") { return $false }  # 应用商店占位符
+  if ($exe -like "*WindowsApps*") { return $false }  # Microsoft Store stub
   try { & $exe -c "import venv,sys;sys.exit(0)" 2>$null; return ($LASTEXITCODE -eq 0) }
   catch { return $false }
 }
@@ -50,7 +50,7 @@ function Find-Python {
     "C:\Python312\python.exe", "C:\Python311\python.exe"
   )
   foreach ($c in $cands) { if ($c -and (Test-Path $c) -and (Test-RealPython $c)) { return $c } }
-  # py 启动器特殊处理
+  # py launcher fallback
   $pylauncher = (Get-Command py -ErrorAction SilentlyContinue)
   if ($pylauncher -and ($pylauncher.Source -notlike "*WindowsApps*")) { return "py" }
   return $null
@@ -58,92 +58,91 @@ function Find-Python {
 
 $Python = Find-Python
 if (-not $Python) {
-  Info "未找到可用 Python，正在用 winget 安装 Python 3.12…"
+  Info "No usable Python found; installing Python 3.12 via winget..."
   winget install -e --id Python.Python.3.12 --source winget `
     --accept-package-agreements --accept-source-agreements
-  if ($LASTEXITCODE -ne 0) { Die "Python 安装失败。请手动安装 Python 3.12 后重试。" }
+  if ($LASTEXITCODE -ne 0) { Die "Python install failed. Please install Python 3.12 manually and retry." }
   Start-Sleep -Seconds 3
   $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
               [System.Environment]::GetEnvironmentVariable("Path", "User")
   $Python = Find-Python
-  if (-not $Python) { Die "安装后仍未找到 Python，请重开终端再运行本脚本。" }
+  if (-not $Python) { Die "Still no Python after install; reopen terminal and rerun this script." }
 }
-Ok "使用 Python：$Python"
+Ok "Using Python: $Python"
 
-# ---------- Step 2：创建虚拟环境 ----------
+# ---------- Step 2: create venv ----------
 $VenvDir = Join-Path $Root ".venv"
 $VPy = Join-Path $VenvDir "Scripts\python.exe"
 if (-not (Test-Path $VPy)) {
-  Info "创建虚拟环境 .venv …"
+  Info "Creating virtual env .venv ..."
   if ($Python -eq "py") { & py -3 -m venv $VenvDir } else { & $Python -m venv $VenvDir }
-  if (-not (Test-Path $VPy)) { Die "虚拟环境创建失败。" }
+  if (-not (Test-Path $VPy)) { Die "venv creation failed." }
 }
-Ok "虚拟环境就绪：$VenvDir"
+Ok "venv ready: $VenvDir"
 
-# ---------- Step 3：安装 Python 依赖 ----------
-Info "升级 pip…"
+# ---------- Step 3: install Python deps ----------
+Info "Upgrading pip..."
 & $VPy -m pip install --upgrade pip --quiet
-Info "安装 Pillow（必需）…"
+Info "Installing Pillow (required)..."
 & $VPy -m pip install --quiet Pillow
-if ($LASTEXITCODE -ne 0) { Die "Pillow 安装失败（检查网络/代理）。" }
+if ($LASTEXITCODE -ne 0) { Die "Pillow install failed (check network/proxy)." }
 
 if ($Backend -eq "transformers") {
-  # RTX 50 系（Blackwell, sm_120）需要 cu128 轮子；cu124 会报 sm_120 不兼容。
-  Info "安装 torch (cu128, 支持 RTX 50 系) + transformers（失败回退 CPU）…"
+  # RTX 50-series (Blackwell, sm_120) needs cu128 wheels; cu124 reports sm_120 incompatible.
+  Info "Installing torch (cu128, for RTX 50-series) + transformers (CPU fallback on failure)..."
   & $VPy -m pip install --quiet torch --index-url https://download.pytorch.org/whl/cu128
   if ($LASTEXITCODE -ne 0) {
-    Warn "CUDA(cu128) 版 torch 安装失败，改装 CPU 版（生成会慢些）…"
+    Warn "CUDA(cu128) torch install failed; installing CPU build (slower generation)..."
     & $VPy -m pip install --quiet torch
   }
   & $VPy -m pip install --quiet transformers safetensors
-  if ($LASTEXITCODE -ne 0) { Die "transformers 安装失败。" }
-  Ok "transformers 后端依赖就绪"
+  if ($LASTEXITCODE -ne 0) { Die "transformers install failed." }
+  Ok "transformers backend deps ready"
 }
-Ok "Python 依赖安装完成"
+Ok "Python deps installed"
 
-# ---------- Step 4：后端准备 ----------
+# ---------- Step 4: backend setup ----------
 if ($Backend -eq "ollama") {
-  Info "准备 Ollama 后端…"
+  Info "Setting up Ollama backend..."
   $ollama = (Get-Command ollama -ErrorAction SilentlyContinue)
   if (-not $ollama) {
-    Info "未检测到 Ollama，正在用 winget 安装…"
+    Info "Ollama not found; installing via winget..."
     winget install -e --id Ollama.Ollama --source winget `
       --accept-package-agreements --accept-source-agreements
     Start-Sleep -Seconds 3
     $env:Path += ";$env:LocalAppData\Programs\Ollama"
   }
-  # 启动 ollama 服务（若未运行）
+  # start ollama service if not running
   try {
     Invoke-WebRequest -Uri "http://127.0.0.1:11434/api/tags" -UseBasicParsing -TimeoutSec 3 | Out-Null
   } catch {
-    Info "启动 Ollama 服务…"
+    Info "Starting Ollama service..."
     Start-Process -WindowStyle Hidden -FilePath "ollama" -ArgumentList "serve" -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 5
   }
-  Info "拉取模型 $OllamaModel（首次较慢）…"
+  Info "Pulling model $OllamaModel (first time is slow)..."
   & ollama pull $OllamaModel
   if ($LASTEXITCODE -ne 0) {
-    Warn "拉取 $OllamaModel 失败，尝试备用 qwen2.5:0.5b …"
+    Warn "Pull $OllamaModel failed; trying fallback qwen2.5:0.5b ..."
     $OllamaModel = "qwen2.5:0.5b"
     & ollama pull $OllamaModel
-    if ($LASTEXITCODE -ne 0) { Warn "Ollama 模型拉取失败；Dolores 仍会以模板大脑运行。" }
+    if ($LASTEXITCODE -ne 0) { Warn "Ollama model pull failed; Dolores will still run with the template brain." }
   }
-  Ok "Ollama 后端准备完成（模型：$OllamaModel）"
+  Ok "Ollama backend ready (model: $OllamaModel)"
 }
 
 if ($Backend -eq "transformers") {
-  Info "准备本地 Qwen3.5 模型文件…"
+  Info "Preparing local Qwen3.5 model files..."
   $ModelDir = Join-Path $Root "models\Qwen3.5-0.8B"
   $haveModel = (Test-Path (Join-Path $ModelDir "config.json"))
   if (-not $haveModel) {
-    # models\Qwen3.5-0.8B 在 Windows 看是 WSL 符号链接，需建真实目录并从 WSL 复制
-    Info "从 WSL 复制模型（约 1.7GB，请稍候）…"
+    # models\Qwen3.5-0.8B is a WSL symlink (unreadable from Windows): make a real dir and copy from WSL
+    Info "Copying model from WSL (~1.7GB, please wait)..."
     $wsl = (Get-Command wsl -ErrorAction SilentlyContinue)
     if ($wsl) {
-      # 先删可能存在的符号链接/空目录，建真实目录
       cmd /c "if exist `"$ModelDir`" rmdir /s /q `"$ModelDir`" 2>nul"
       New-Item -ItemType Directory -Force -Path $ModelDir | Out-Null
-      # 把 Windows 路径转成 WSL 路径：D:\Linux\... -> /mnt/d/Linux/...
+      # Windows path -> WSL path: D:\Linux\... -> /mnt/d/Linux/...
       $drive = $ModelDir.Substring(0,1).ToLower()
       $rest = $ModelDir.Substring(2) -replace '\\','/'
       $winDst = "/mnt/$drive$rest"
@@ -152,22 +151,22 @@ if ($Backend -eq "transformers") {
       $haveModel = (Test-Path (Join-Path $ModelDir "config.json"))
     }
     if (-not $haveModel) {
-      Warn "自动复制未成功。请手动把 WSL 里的模型目录复制到：$ModelDir"
-      Warn "（资源管理器打开 \\wsl.localhost\<发行版>\home\dayrker\.cache\modelscope\hub\models\Qwen\Qwen3___5-0___8B）"
-    } else { Ok "模型复制完成 → $ModelDir" }
-  } else { Ok "已存在本地模型：$ModelDir" }
+      Warn "Auto-copy did not succeed. Please copy the WSL model dir manually to: $ModelDir"
+      Warn "(Open in Explorer: \\wsl.localhost\<distro>\home\dayrker\.cache\modelscope\hub\models\Qwen\Qwen3___5-0___8B)"
+    } else { Ok "Model copied -> $ModelDir" }
+  } else { Ok "Local model already present: $ModelDir" }
 }
 
-# ---------- Step 5：生成立绘（若缺）----------
+# ---------- Step 5: generate sprites if missing ----------
 $SpriteManifest = Join-Path $Root "assets\sprites\default\manifest.json"
 if (-not (Test-Path $SpriteManifest)) {
-  Info "生成默认立绘…"
+  Info "Generating default sprites..."
   & $VPy (Join-Path $Root "scripts\generate_sprites.py")
 }
-Ok "立绘就绪"
+Ok "Sprites ready"
 
-# ---------- Step 6：写 config.json（安全合并）----------
-Info "写入配置（backend=$Backend）…"
+# ---------- Step 6: write config.json (safe merge) ----------
+Info "Writing config (backend=$Backend)..."
 $cfgPath = Join-Path $Root "config.json"
 try {
   $cfg = Get-Content $cfgPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -183,18 +182,18 @@ if ($Backend -eq "ollama") {
   } else { $cfg.model.ollama.model = $OllamaModel }
 }
 $cfg | ConvertTo-Json -Depth 12 | Set-Content -Path $cfgPath -Encoding UTF8
-Ok "配置已写入 $cfgPath"
+Ok "Config written: $cfgPath"
 
-# ---------- Step 7：启动器 + 快捷方式 ----------
+# ---------- Step 7: launcher + shortcut ----------
 $Launcher = Join-Path $Root "windows\run_dolores.bat"
 $pyw = Join-Path $VenvDir "Scripts\pythonw.exe"
 $launcherContent = @"
 @echo off
-REM 由安装脚本生成/校准的启动器。无控制台窗口启动 Dolores。
+REM Generated/calibrated launcher. Starts Dolores with no console window.
 start "" "$pyw" "$Root\run.py"
 "@
 Set-Content -Path $Launcher -Value $launcherContent -Encoding ASCII
-Ok "启动器：$Launcher"
+Ok "Launcher: $Launcher"
 
 if (-not $NoShortcut) {
   try {
@@ -207,16 +206,16 @@ if (-not $NoShortcut) {
     $sc.WorkingDirectory = $Root
     $ico = Join-Path $Root "assets\dolores.ico"
     if (Test-Path $ico) { $sc.IconLocation = $ico }
-    $sc.Description = "Dolores 桌面萌宠"
+    $sc.Description = "Dolores Desktop Pet"
     $sc.Save()
-    Ok "桌面快捷方式：$lnk"
-  } catch { Warn "创建快捷方式失败（可手动运行 run_dolores.bat）：$_" }
+    Ok "Desktop shortcut: $lnk"
+  } catch { Warn "Failed to create shortcut (you can run run_dolores.bat manually): $_" }
 }
 
-# ---------- Step 8：冒烟自检 ----------
-Info "导入自检…"
+# ---------- Step 8: import smoke test ----------
+Info "Import smoke test..."
 & $VPy -c "import dolores.app; print('import-ok')"
-if ($LASTEXITCODE -ne 0) { Warn "导入自检未通过，请检查依赖。" } else { Ok "导入自检通过" }
+if ($LASTEXITCODE -ne 0) { Warn "Import smoke test failed; check dependencies." } else { Ok "Import smoke test passed" }
 
 Write-Host ""
-Ok "安装完成！后端=$Backend。双击桌面「Dolores」或运行 windows\run_dolores.bat 启动。"
+Ok "Install complete! backend=$Backend. Double-click the Desktop 'Dolores' shortcut or run windows\run_dolores.bat."

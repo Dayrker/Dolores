@@ -1,7 +1,7 @@
 ---
 name: windows-oneclick-installer
 description: Build a double-click Windows installer (BAT + PowerShell) for a Python app that auto-installs Python via winget, creates a venv, installs deps, sets up an LLM backend, copies models out of WSL, and creates a desktop shortcut. Use when shipping a Python/WSL-developed app to native Windows users who have no Python, or when a project must "just work" from one double-click.
-keywords: [Windows installer, one-click, PowerShell, winget, venv, pythonw, desktop shortcut, WScript.Shell, WSL model copy, wsl.localhost, UTF-8 BOM, PS 5.1, execution policy, torch cu128, Ollama, Store stub python]
+keywords: [Windows installer, one-click, PowerShell, winget, venv, pythonw, desktop shortcut, WScript.Shell, WSL model copy, wsl.localhost, UTF-8 BOM, BAT encoding, GBK mojibake, CRLF, codepage, PS 5.1, execution policy, torch cu128, Ollama, Store stub python]
 ---
 
 # Windows one-click installer for a Python app
@@ -17,13 +17,38 @@ pause
 
 ## Hard-won gotchas (each one bit me)
 
-### 1. PowerShell scripts with non-ASCII MUST be saved UTF-8 **with BOM**
+### Encoding rules for the two file types are OPPOSITE — get both right
+A localized (e.g. Chinese) Windows makes encoding the #1 source of "it won't even start":
+
+| File | Read by | Rule | Wrong → symptom |
+|------|---------|------|-----------------|
+| `.ps1` | PowerShell 5.1 | **UTF-8 *with* BOM** (or all-ASCII) | no BOM + non-ASCII → parse errors / garbled tokens |
+| `.bat` | cmd.exe (OEM/GBK codepage) | **pure ASCII + CRLF** (no BOM, no UTF-8 CJK) | UTF-8 CJK → `'<mojibake>' 不是内部或外部命令` (each garbled comment run as a command) |
+
+**Simplest robust policy: keep ALL non-ASCII out of both `.bat` and `.ps1`.** Emit only
+English to the console; put any localized text in the Python app (rendered via Pillow — see
+`tkinter-cjk-pillow-rendering`), not in the installer scripts. Then encoding can't bite.
+
+### 1. PowerShell scripts: UTF-8 **with BOM** if they contain non-ASCII
 Windows PowerShell 5.1 decodes `.ps1` as the ANSI/GBK codepage unless a BOM is present.
-Chinese comments → parse errors / garbled tokens. Save as `utf-8-sig`. Verify by parsing
-without executing:
+Chinese comments → parse errors / garbled tokens. Save as `utf-8-sig` (or stay all-ASCII
+and the question is moot). Verify by parsing without executing:
 ```powershell
 $e=$null; [void][Management.Automation.Language.Parser]::ParseFile($f,[ref]$null,[ref]$e); $e
 ```
+
+### 1b. BAT files: pure ASCII + CRLF, never UTF-8 with CJK
+cmd reads `.bat` in the console's OEM codepage (GBK on zh-CN), so UTF-8 Chinese in
+`@echo`/`REM` becomes mojibake that cmd tries to execute → a flood of
+`'乱码' 不是内部或外部命令`. Also use **CRLF** line endings (LF-only `.bat` can misbehave).
+Keep batch files English-only. Normalize after editing:
+```python
+# in a build step / editor: force ASCII + CRLF
+data = open("install.bat","r",encoding="ascii").read()      # raises if any non-ASCII slipped in
+open("install.bat","wb").write(data.replace("\r\n","\n").replace("\n","\r\n").encode("ascii"))
+```
+If you must show localized text from a `.bat`, `chcp 65001 >nul` first and save UTF-8 — but
+all-English is far less fragile.
 
 ### 2. The default `python.exe` on Windows is a **Microsoft Store stub**, not Python
 `where python` returns `...\WindowsApps\python.exe` which is a fake that opens the Store.

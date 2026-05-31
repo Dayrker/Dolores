@@ -22,7 +22,7 @@
 - **conda Tk 无 Xft** → 中文只能用 **Pillow 画成图**再贴；`-transparentcolor` 在 X11 不支持，只能 `-alpha`。
 - **WSL 代理常常只对 Windows 生效**，WSL 自身联不上 → 联网安装放到 Windows 侧做。
 - **WSL 内的模型符号链接 Windows 读不到** → 安装时 `cp -L` 解引用复制到真实目录。
-- **PowerShell 5.1 必须 UTF-8 BOM** 才能正确解析中文脚本。
+- **PowerShell 5.1 必须 UTF-8 BOM** 才能正确解析中文脚本；**`.bat` 反之**：必须纯 ASCII + CRLF（中文版 cmd 按 GBK 读 UTF-8 会把中文当命令执行报错）。最稳：脚本只输出英文，本地化文字放进 Python 应用。
 - **Windows 默认 `python.exe` 是应用商店占位**，要排除 `WindowsApps` 路径并 winget 装真 Python。
 - **RTX 50 系（sm_120）torch 要 cu128**，cu124 不兼容。
 - **transformers 5.x**：用 `dtype=`（非 `torch_dtype=`）、`.to('cuda')`（非 `device_map=`，免 accelerate）。
