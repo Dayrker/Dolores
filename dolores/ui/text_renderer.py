@@ -136,10 +136,15 @@ def get_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
 
 def measure(text: str, font: ImageFont.FreeTypeFont) -> Tuple[int, int]:
     """测量多行文本的像素宽高。"""
+    bbox = _text_bbox(text, font)
+    return bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+
+def _text_bbox(text: str, font: ImageFont.FreeTypeFont) -> Tuple[int, int, int, int]:
+    """Return Pillow's real ink bbox for text drawn at origin."""
     dummy = Image.new("RGBA", (4, 4))
     d = ImageDraw.Draw(dummy)
-    bbox = d.multiline_textbbox((0, 0), text, font=font, spacing=4)
-    return bbox[2] - bbox[0], bbox[3] - bbox[1]
+    return d.multiline_textbbox((0, 0), text, font=font, spacing=4)
 
 
 def wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int) -> str:
@@ -176,9 +181,17 @@ def render_text(
     font = get_font(size, bold=bold)
     if max_width:
         text = wrap_text(text, font, max_width)
-    w, h = measure(text, font)
+    bbox = _text_bbox(text, font)
+    w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
     pl, pt, pr, pb = padding
     img = Image.new("RGBA", (max(1, w + pl + pr), max(1, h + pt + pb)), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.multiline_text((pl, pt), text, font=font, fill=color, spacing=4, align=align)
+    d.multiline_text(
+        (pl - bbox[0], pt - bbox[1]),
+        text,
+        font=font,
+        fill=color,
+        spacing=4,
+        align=align,
+    )
     return img
