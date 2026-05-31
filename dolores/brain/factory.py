@@ -117,6 +117,7 @@ def _make_ollama(cfg: Config, char_name: str):
         top_p=cfg.get("model.top_p", 0.9),
         keep_alive=o.get("keep_alive", "5m"),
         request_timeout=o.get("request_timeout", 60),
+        think=o.get("think", False),
     )
 
 

@@ -38,6 +38,7 @@ DEFAULTS: Dict[str, Any] = {
             "model": "qwen3:0.6b",
             "keep_alive": "5m",
             "request_timeout": 60,
+            "think": False,
         },
     },
     "ui": {

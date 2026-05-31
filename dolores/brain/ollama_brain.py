@@ -35,6 +35,7 @@ class OllamaBrain(Brain):
         top_p: float = 0.9,
         keep_alive: str = "5m",
         request_timeout: int = 60,
+        think: bool = False,
     ):
         self.model = model
         self.host = host.rstrip("/")
@@ -44,6 +45,9 @@ class OllamaBrain(Brain):
         self.top_p = top_p
         self.keep_alive = keep_alive
         self.request_timeout = request_timeout
+        # qwen3 等思考模型默认会把 token 花在 <think> 里导致 content 为空；
+        # think=False 让其直接产出回复（Ollama 原生参数）。
+        self.think = think
 
         self._ready = False
         self._load_error: Optional[str] = None
@@ -107,6 +111,7 @@ class OllamaBrain(Brain):
             "model": self.model,
             "messages": messages,
             "stream": False,
+            "think": self.think,
             "keep_alive": self.keep_alive,
             "options": {
                 "num_predict": self.max_new_tokens,
@@ -117,7 +122,11 @@ class OllamaBrain(Brain):
         with self._lock:
             # 出错时抛异常，交给 HybridBrain 回退
             resp = self._post_json("/api/chat", payload, timeout=self.request_timeout)
-        text = (resp.get("message") or {}).get("content", "")
+        msg = resp.get("message") or {}
+        text = msg.get("content", "")
+        # 个别模型即便 think=False 仍把内容塞进 thinking 字段，兜底取用
+        if not text.strip():
+            text = msg.get("thinking", "") or ""
         text = clean_reply(text, self.char_name)
         return BrainReply(text=text or f"{self.char_name}在这里哦～", source="ollama")
 

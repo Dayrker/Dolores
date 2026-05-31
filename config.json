@@ -19,7 +19,8 @@
       "host": "http://127.0.0.1:11434",
       "model": "qwen3:0.6b",
       "keep_alive": "5m",
-      "request_timeout": 60
+      "request_timeout": 60,
+      "think": false
     },
     "_comment": "backend: auto|ollama|transformers|template。auto 优先 Ollama，其次本地 transformers(Qwen3.5)，都不可用则模板大脑。Windows 一键安装默认 ollama；ollama.model 由安装脚本按实际拉取的标签写入。"
   },
