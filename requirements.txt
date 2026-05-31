@@ -1,0 +1,22 @@
+# Dolores 依赖说明
+#
+# 运行时必需：
+#   - Python 3.10+（Windows 一键安装会用 winget 装 Python 3.12）
+#   - 标准库 tkinter（GUI）
+#   - Pillow（文字/立绘渲染）—— 必需
+#
+# 可选后端（按需，缺失则自动回退）：
+#   A) Ollama 后端：无需 Python 包（纯 urllib 调本地服务），需安装 Ollama 应用并 pull 模型
+#   B) 本地 Qwen3.5(transformers) 后端：
+#        - torch（Windows + RTX 50 系需 cu128 轮子；其它平台按官方指引）
+#        - transformers >= 5.0   # 需支持 Qwen3.5(qwen3_5)
+#        - safetensors
+#
+# 系统指标：Linux 读 /proc，Windows 用 ctypes 调 Win32，均不需要 psutil。
+
+Pillow>=9.0
+
+# --- 可选：本地 transformers 后端 ---
+# torch            # Windows RTX50 系：pip install torch --index-url https://download.pytorch.org/whl/cu128
+# transformers>=5.0
+# safetensors

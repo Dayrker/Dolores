@@ -1,0 +1,48 @@
+{
+  "name": "default",
+  "size": 140,
+  "fps": 12,
+  "anchor": "bottom-center",
+  "actions": {
+    "idle": {
+      "frames": 4,
+      "loop": true,
+      "fps": 6
+    },
+    "blink": {
+      "frames": 2,
+      "loop": false,
+      "fps": 6
+    },
+    "bounce": {
+      "frames": 6,
+      "loop": false,
+      "fps": 14
+    },
+    "wave": {
+      "frames": 6,
+      "loop": false,
+      "fps": 12
+    },
+    "sleep": {
+      "frames": 4,
+      "loop": true,
+      "fps": 4
+    },
+    "panic": {
+      "frames": 4,
+      "loop": true,
+      "fps": 16
+    }
+  },
+  "mood_map": {
+    "happy": "idle",
+    "comfy": "idle",
+    "curious": "idle",
+    "worried": "idle",
+    "lonely": "idle",
+    "excited": "bounce",
+    "panic": "panic",
+    "sleepy": "sleep"
+  }
+}

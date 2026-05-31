@@ -1,0 +1,31 @@
+# 模型权重不入库（很大，本地放在 models/ 下）
+models/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# 日志与运行产物
+*.log
+dolores.log
+
+# 编辑器/系统
+.vscode/
+.idea/
+.DS_Store
+
+# Windows 安装产生的虚拟环境
+.venv/
+venv/
+
+# 临时
+/tmp/
+*.tmp
+
+# 立绘：提交内置 default 包，用户自定义包不入库
+assets/sprites/*/
+!assets/sprites/default/
