@@ -1,129 +1,138 @@
 # 🌸 Dolores · 桌面萌宠小精灵
 
 > 一只住在你电脑里、会观察电脑状态、像有一点点自主意识的萌系桌面宠物。
+> 支持 **Windows 一键安装**，本地 LLM 驱动（Ollama / 本地 Qwen3 任选）。
 
 Dolores（朵拉）会安静地待在屏幕角落，用可爱的小表情陪着你。她能感知 CPU /
 内存 / 时间等电脑状态，并**自发**地做出反应——CPU 飙高会惊慌、夜深了会提醒你
 休息、太久没理她会撒娇。你不用一直给她下指令，但随时可以双击她、打字和她聊天。
 
-后端大脑设计成**可插拔**：默认用一套零依赖的「模板大脑」即可生动地说话；当本地
-大模型可用时（见下文），会自动切换到本地 LLM 生成更自然的对话。
-
-```
-        ╭──────────────────────────────╮
-        │ 你好呀主人～朵拉上线啦！        │
-        │ 今天 CPU 好凉快哦 (≧▽≦)        │
-        ╰───────────────╮──────────────╯
-                         ╲    ╭───────╮
-                              │ (・ω・) │   ← 会浮动、会换表情、可拖拽
-                              ╰───────╯
-```
+她会蹦跶、挥手、眨眼、打瞌睡——一整套图片立绘动作，也可以换成你自己的立绘包。
 
 ---
 
 ## ✨ 特性
 
-- **实时感知电脑状态**：CPU、内存、系统负载、时间段（纯读 `/proc`，不依赖 psutil）。
-- **情绪 + 自主行为**：内置情绪状态机（开心 / 悠闲 / 兴奋 / 担心 / 惊慌 / 困倦 / 寂寞），
-  由系统状态驱动；自主引擎决定**何时自己开口**，无需手动指令。
-- **萌系立绘**：用 Pillow 程序化绘制的小精灵，会上下浮动、按情绪切换表情（无需任何美术素材）。
-- **对话气泡 + 手动聊天**：双击或右键即可打字和她聊天，支持中文输入。
-- **可插拔大脑**：
-  - `TemplateBrain`：零依赖、永远在线的可爱话术引擎（默认）。
-  - `TransformersBrain`：尝试加载本地 Qwen 模型；失败则自动回退模板大脑。
-- **稳定优先**：模型加载在后台线程，UI 秒开；任何一环出错都优雅降级，不崩溃。
+- **实时感知电脑状态**：CPU、内存、负载、时间段。Linux 读 `/proc`，Windows 用
+  ctypes 调 Win32（均**不依赖 psutil**）。
+- **情绪 + 自主行为**：情绪状态机（开心 / 悠闲 / 兴奋 / 担心 / 惊慌 / 困倦 / 寂寞），
+  自主引擎决定**何时自己开口**，无需手动指令。
+- **图片立绘 + 多动作**：idle / blink / bounce / wave / sleep / panic 多套动画，
+  戳一戳会蹦跶、打招呼会挥手。可用自己的 PNG 立绘包替换。
+- **可插拔大脑（本地优先）**：
+  - **Ollama** 后端（Windows 一键安装默认）——本地推理引擎，省心。
+  - **本地 Qwen3.5** 后端（transformers + GPU）——用你下载的本地权重。
+  - **模板大脑**——零依赖兜底，永远在线。
+  - 三者自动回退：Ollama → 本地 Qwen → 模板，任何一环不可用都不影响使用。
+- **跨平台**：原生 Windows（一键安装）与 Linux/WSL 皆可运行。
+- **稳定优先**：模型后台加载、UI 秒开；出错优雅降级，不崩溃。
 
 ---
 
-## 🚀 快速开始
+## 🚀 Windows 一键安装（推荐）
 
-> 本项目固定使用指定的 conda 环境解释器：
-> `/home/dayrker/anaconda3/envs/torch2.10/bin/python`
+1. 把整个项目放在 Windows 可访问的位置（如 `D:\Linux\Dolores`）。
+2. 进入 `windows\` 文件夹，**双击 `install.bat`**。
+3. 脚本会自动完成：
+   - 检测/安装真正的 Python（缺失则用 winget 装 Python 3.12）
+   - 创建虚拟环境 `.venv` 并安装依赖（Pillow）
+   - 安装 **Ollama** 并拉取一个小巧的 Qwen 模型（默认后端）
+   - 生成默认立绘、写入配置、创建**桌面快捷方式**
+4. 完成后，双击桌面「**Dolores**」即可启动～
+
+想用本地 Qwen3.5 权重（transformers + GPU）而非 Ollama：
+
+```powershell
+# 在 windows\ 目录下，右键“以 PowerShell 运行”或在终端执行：
+powershell -ExecutionPolicy Bypass -File install.ps1 -Backend transformers
+```
+该模式会安装 GPU 版 PyTorch（RTX 50 系用 cu128）并从 WSL 复制本地模型。
+
+> 卸载：运行 `windows\uninstall.ps1`（保留模型与配置，仅删 `.venv` 与快捷方式）。
+
+---
+
+## 🐧 Linux / WSL 运行
 
 ```bash
 cd /mnt/d/Linux/Dolores
-
-# 直接运行
+# 用带 torch/transformers/Pillow 的解释器（开发环境示例）：
 /home/dayrker/anaconda3/envs/torch2.10/bin/python run.py
-
-# 或者用模块方式
-/home/dayrker/anaconda3/envs/torch2.10/bin/python -m dolores
+# 或
+python -m dolores
 ```
 
-启动后，Dolores 会出现在屏幕右下角并和你打招呼。
+---
 
-### 交互方式
+## 🎮 交互方式
 
 | 操作 | 效果 |
 |------|------|
-| **单击**她 | 戳一戳，她会开心地反应 |
+| **单击**她 | 戳一戳，她会开心地蹦跶 |
 | **双击**她 | 打开聊天输入框 |
 | **拖拽** | 把她拖到任意位置 |
 | **右键** | 菜单：说话 / 戳一戳 / 退出 |
-| 聊天框里 **回车** | 发送消息 |
-| 聊天框里 **Esc** | 关闭输入框 |
+| 聊天框 **回车 / Esc** | 发送 / 关闭 |
 
 ---
 
-## 🧠 关于本地大模型（重要）
+## 🧠 大脑后端
 
-`models/Qwen3.5-0.8B` 是 **Qwen3.5** 系列（架构标识 `qwen3_5`）。
-当前环境的 `transformers==4.56.1` **尚不支持**该架构，因此启动时模型会加载失败，
-Dolores 会**自动回退到模板大脑**——她依然活泼可爱，只是话术来自内置语料库。
+由 `config.json` 的 `model.backend` 选择：
 
-这是**预期行为**，不是 bug。一旦你把 transformers 升级到支持 `qwen3_5` 的版本，
-Dolores 会在下次启动时**自动启用本地 LLM**，无需改任何代码：
+| 值 | 行为 |
+|----|------|
+| `auto`（默认） | 依次尝试 Ollama → 本地 Qwen(transformers) → 模板 |
+| `ollama` | 只用 Ollama（→ 模板兜底） |
+| `transformers` | 只用本地 Qwen3.5 权重（→ 模板兜底） |
+| `template` | 只用内置话术，不加载任何模型 |
 
-```bash
-# 待有网络时（任选其一）
-pip install --upgrade transformers
-# 或装最新源码版
-pip install git+https://github.com/huggingface/transformers.git
+- **Ollama**：需本地运行 Ollama 服务（`ollama serve`）并已 `ollama pull` 对应模型；
+  模型名写在 `model.ollama.model`。一键安装会自动配好。
+- **本地 Qwen3.5**：权重放在 `models/Qwen3.5-0.8B`，需 `transformers≥5.x`（支持 `qwen3_5`）
+  与 GPU/torch。实测 RTX 5070 Ti 上加载 ~2s、显存 ~1.6GB。
+
+---
+
+## 🎨 自定义立绘
+
+立绘包在 `assets/sprites/<包名>/`，由 `manifest.json` + `<动作>_<帧号>.png` 组成：
+
+```
+assets/sprites/default/
+  manifest.json
+  idle_00.png idle_01.png …
+  wave_00.png …  bounce_00.png …  sleep_00.png …  panic_00.png …
 ```
 
-升级后日志会显示 `大脑：本地模型大脑 ✨`。
-也可以在 `config.json` 里把 `"model.enabled"` 设为 `false` 来始终使用模板大脑。
+- 想换立绘：仿照 `default/` 放一套你的 PNG，在 `config.json` 把
+  `ui.sprite.pack` 指过去（`ui.sprite.mode` 设 `image` 或 `auto`）。
+- 重新生成内置立绘：`python scripts/generate_sprites.py`。
+- `manifest.json` 里 `actions` 定义每个动作的帧数/循环/帧率，`mood_map` 把情绪
+  映射到动作。缺失或损坏会自动回退到**程序化矢量立绘**，保证能跑。
 
 ---
 
-## ⚙️ 配置
-
-所有配置在项目根目录的 [config.json](config.json)，缺失字段会用内置默认值兜底。常用项：
+## ⚙️ 配置要点（config.json）
 
 | 配置项 | 说明 | 默认 |
 |--------|------|------|
-| `character.name` | 角色名 | `Dolores` |
-| `model.enabled` | 是否尝试加载本地 LLM | `true` |
-| `model.path` | 模型目录（相对项目根） | `models/Qwen3.5-0.8B` |
-| `ui.pet_size` | 立绘像素大小 | `140` |
-| `ui.start_corner` | 初始角落 | `bottom-right` |
-| `ui.theme` | 配色（`pink` / `blue`） | `pink` |
-| `behavior.sensor_interval_ms` | 状态采样间隔（毫秒） | `2000` |
-| `behavior.autonomy_min_interval_s` / `max` | 自发闲聊的随机间隔范围（秒） | `35` / `90` |
-| `behavior.idle_lonely_after_s` | 多久没互动会撒娇（秒） | `600` |
-| `behavior.thresholds.cpu_high` 等 | 触发反应的阈值 | 见文件 |
-| `behavior.quiet_hours` | 安静时段（减少打扰） | `1`–`6` 点 |
+| `model.backend` | `auto`/`ollama`/`transformers`/`template` | `auto` |
+| `model.path` | 本地 Qwen 权重目录 | `models/Qwen3.5-0.8B` |
+| `model.ollama.model` | Ollama 模型标签 | 安装时写入 |
+| `ui.sprite.mode` | `image`/`vector`/`auto` | `auto` |
+| `ui.sprite.pack` | 立绘包名 | `default` |
+| `ui.pet_size` / `theme` | 立绘大小 / 配色(`pink`/`blue`) | `140` / `pink` |
+| `behavior.autonomy_*_interval_s` | 自发闲聊间隔范围 | `35`–`90` |
+| `behavior.idle_lonely_after_s` | 多久没互动会撒娇 | `600` |
+| `behavior.quiet_hours` | 安静时段 | `1`–`6` 点 |
 
 ---
 
 ## 📚 文档
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) —— 架构与各模块设计、线程模型、扩展指南。
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) —— 架构、模块、线程模型、扩展指南。
 - [docs/USAGE.md](docs/USAGE.md) —— 详细使用、常见问题与排错。
-
----
-
-## 🛠️ 技术栈与环境约束
-
-- **Python 3.10**（conda 环境 `torch2.10`）
-- **GUI：标准库 tkinter** —— 因当前环境无法联网安装 PySide6/PyQt。
-- **文字渲染：Pillow** —— 该环境的 conda Tk 未链接 Xft，无法直接显示中文/颜文字，
-  故所有文字（立绘表情、气泡、输入预览）都用 Pillow 按 TTF 渲染成图片再贴到界面。
-  中文/emoji 字体直接读取 Windows 侧的 `msyh.ttc` / `seguiemj.ttf`（WSL 环境）。
-- **系统指标：`/proc`** —— 不依赖 psutil。
-- **可选：torch + transformers** —— 本地 LLM 后端（见上文）。
-
-> 这些取舍都源于「离线 + 该环境 Tk 受限」的现实，详见架构文档。
 
 ---
 
@@ -131,37 +140,32 @@ pip install git+https://github.com/huggingface/transformers.git
 
 ```
 Dolores/
-├── run.py                  # 启动入口
-├── config.json             # 配置
-├── requirements.txt        # 依赖说明（环境已具备）
+├── run.py / dolores/__main__.py   # 入口
+├── config.json                    # 配置
+├── windows/                       # Windows 一键安装
+│   ├── install.bat / install.ps1  #   安装器
+│   ├── run_dolores.bat            #   启动器
+│   └── uninstall.ps1
+├── assets/
+│   ├── sprites/default/           # 内置图片立绘包
+│   └── dolores.ico                # 快捷方式图标
 ├── dolores/
-│   ├── app.py              # 应用编排（线程/心跳/调度）
-│   ├── config.py           # 配置加载
-│   ├── sensors.py          # /proc 系统状态感知
-│   ├── personality.py      # 情绪状态机 + 事件检测
-│   ├── autonomy.py         # 自主行为引擎（何时开口）
-│   ├── brain/              # 可插拔大脑
-│   │   ├── base.py         #   接口与数据类
-│   │   ├── template_brain.py  # 零依赖话术引擎
-│   │   ├── transformers_brain.py # 本地 LLM 后端
-│   │   └── factory.py      #   Hybrid 回退逻辑
-│   └── ui/                 # tkinter + Pillow 界面
-│       ├── text_renderer.py   # 文字→图片（绕开 Tk 字体限制）
-│       ├── sprite.py          # 程序化萌系立绘
-│       ├── pet_window.py      # 主角窗口
-│       ├── bubble.py          # 对话气泡
-│       └── chat_input.py      # 手动输入框
-├── scripts/
-│   └── gui_smoketest.py    # GUI 自检脚本
-└── docs/
-    ├── ARCHITECTURE.md
-    └── USAGE.md
+│   ├── app.py                     # 编排（线程/心跳/调度）
+│   ├── sensors.py                 # 跨平台系统感知（/proc | Win32 ctypes）
+│   ├── personality.py             # 情绪状态机 + 事件
+│   ├── autonomy.py                # 自主行为引擎
+│   ├── brain/                     # 可插拔大脑
+│   │   ├── prompts.py / postprocess.py
+│   │   ├── template_brain.py / transformers_brain.py / ollama_brain.py
+│   │   └── factory.py             #   多后端回退链
+│   └── ui/                        # tkinter + Pillow 界面
+│       ├── text_renderer.py / sprite.py / sprite_loader.py
+│       └── pet_window.py / bubble.py / chat_input.py
+└── scripts/
+    ├── generate_sprites.py        # 生成立绘包
+    └── gui_smoketest.py           # GUI 自检
 ```
 
 ---
-
-## 📝 许可
-
-个人项目，自由使用。模型权重版权归 Qwen 团队所有（见 `models/.../LICENSE`）。
 
 愿 Dolores 陪你度过每一个敲代码的日子 (・ω・)b
