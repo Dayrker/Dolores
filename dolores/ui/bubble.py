@@ -1,7 +1,7 @@
 """对话气泡窗口：一个无边框、置顶的小窗，显示 Dolores 说的话。
 
-由于 conda Tk 无 Xft 也无 -transparentcolor，气泡用 Pillow 画成圆角卡片图（带小尾巴），
-贴到一个 -alpha 半透明的 Toplevel 上。自动定位在立绘上方/旁边，超时淡出。
+气泡用 Pillow 画成圆角卡片图（带小尾巴），贴到独立 Toplevel 上。
+支持 transparentcolor 的 Tk 后端会隐藏卡片透明角落；否则退回浅色半透明窗口。
 """
 from __future__ import annotations
 
@@ -11,6 +11,11 @@ from typing import Optional
 from PIL import Image, ImageDraw, ImageTk
 
 from . import text_renderer as tr
+from .transparency import (
+    apply_alpha_shape,
+    apply_transparent_background,
+    prepare_chroma_key_image,
+)
 
 
 def _rounded_card(
@@ -59,13 +64,12 @@ class Bubble:
         self.win = tk.Toplevel(master)
         self.win.overrideredirect(True)
         self.win.attributes("-topmost", True)
-        try:
-            self.win.attributes("-alpha", 0.97)
-        except tk.TclError:
-            pass
+        self._bg, self._has_chroma_transparency = apply_transparent_background(
+            self.win, "#fffcfe", fallback_alpha=0.97
+        )
         self.win.withdraw()
 
-        self.label = tk.Label(self.win, bd=0, highlightthickness=0, bg="#fffcfe")
+        self.label = tk.Label(self.win, bd=0, highlightthickness=0, bg=self._bg)
         self.label.pack()
         self._photo: Optional[ImageTk.PhotoImage] = None
         self._hide_job: Optional[str] = None
@@ -77,7 +81,8 @@ class Bubble:
             text, size=17, color=(70, 50, 85, 255), max_width=self.max_width_px
         )
         card = _rounded_card(text_img)
-        self._photo = ImageTk.PhotoImage(card)
+        display_card = prepare_chroma_key_image(card) if self._has_chroma_transparency else card
+        self._photo = ImageTk.PhotoImage(display_card)
         self.label.configure(image=self._photo)
         self.win.update_idletasks()
 
@@ -92,6 +97,8 @@ class Bubble:
         self.win.geometry(f"{w}x{h}+{px}+{py}")
         self.win.deiconify()
         self.win.lift()
+        if not self._has_chroma_transparency:
+            apply_alpha_shape(self.win, card)
         self._visible = True
 
         if self._hide_job is not None:

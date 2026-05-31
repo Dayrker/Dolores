@@ -29,3 +29,6 @@ venv/
 # 立绘：提交内置 default 包，用户自定义包不入库
 assets/sprites/*/
 !assets/sprites/default/
+
+# MR信息无需提交
+PR_DESCRIPTION.md

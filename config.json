@@ -1,64 +1,63 @@
-{
-  "character": {
-    "name": "Dolores",
-    "name_cn": "朵拉",
-    "species": "电子精灵",
-    "self_intro": "一只住在你电脑里、会观察你电脑状态的萌系小精灵"
-  },
-
-  "model": {
-    "enabled": true,
-    "backend": "auto",
-    "path": "models/Qwen3.5-0.8B",
-    "device": "auto",
-    "max_new_tokens": 80,
-    "temperature": 0.85,
-    "top_p": 0.9,
-    "load_in_background": true,
-    "ollama": {
-      "host": "http://127.0.0.1:11434",
-      "model": "qwen3:0.6b",
-      "keep_alive": "5m",
-      "request_timeout": 60,
-      "think": false
-    },
-    "_comment": "backend: auto|ollama|transformers|template。auto 优先 Ollama，其次本地 transformers(Qwen3.5)，都不可用则模板大脑。Windows 一键安装默认 ollama；ollama.model 由安装脚本按实际拉取的标签写入。"
-  },
-
-  "ui": {
-    "pet_size": 140,
-    "start_corner": "bottom-right",
-    "margin": 24,
-    "topmost": true,
-    "bubble_max_chars": 40,
-    "bubble_duration_ms": 6500,
-    "theme": "pink",
-    "font_family": "",
-    "click_through_idle": false,
-    "sprite": {
-      "mode": "auto",
-      "asset_dir": "assets/sprites",
-      "pack": "default"
-    }
-  },
-
-  "behavior": {
-    "sensor_interval_ms": 2000,
-    "autonomy_min_interval_s": 35,
-    "autonomy_max_interval_s": 90,
-    "idle_lonely_after_s": 600,
-    "thresholds": {
-      "cpu_high": 80.0,
-      "cpu_very_high": 92.0,
-      "mem_high": 80.0,
-      "mem_very_high": 92.0
-    },
-    "quiet_hours": { "start": 1, "end": 6 }
-  },
-
-  "logging": {
-    "level": "INFO",
-    "to_file": false,
-    "file": "dolores.log"
-  }
+﻿{
+    "character":  {
+                      "name":  "Dolores",
+                      "name_cn":  "朵拉",
+                      "species":  "电子精灵",
+                      "self_intro":  "一只住在你电脑里、会观察你电脑状态的萌系小精灵"
+                  },
+    "model":  {
+                  "enabled":  true,
+                  "backend":  "ollama",
+                  "path":  "models/Qwen3.5-0.8B",
+                  "device":  "auto",
+                  "max_new_tokens":  80,
+                  "temperature":  0.85,
+                  "top_p":  0.9,
+                  "load_in_background":  true,
+                  "ollama":  {
+                                 "host":  "http://127.0.0.1:11434",
+                                 "model":  "qwen3:0.6b",
+                                 "keep_alive":  "5m",
+                                 "request_timeout":  60,
+                                 "think":  false
+                             },
+                  "_comment":  "backend: auto|ollama|transformers|template。auto 优先 Ollama，其次本地 transformers(Qwen3.5)，都不可用则模板大脑。Windows 一键安装默认 ollama；ollama.model 由安装脚本按实际拉取的标签写入。"
+              },
+    "ui":  {
+               "pet_size":  140,
+               "start_corner":  "bottom-right",
+               "margin":  24,
+               "topmost":  true,
+               "bubble_max_chars":  40,
+               "bubble_duration_ms":  6500,
+               "theme":  "pink",
+               "font_family":  "",
+               "click_through_idle":  false,
+               "sprite":  {
+                              "mode":  "auto",
+                              "asset_dir":  "assets/sprites",
+                              "pack":  "default"
+                          }
+           },
+    "behavior":  {
+                     "sensor_interval_ms":  2000,
+                     "autonomy_min_interval_s":  35,
+                     "autonomy_max_interval_s":  90,
+                     "idle_lonely_after_s":  600,
+                     "thresholds":  {
+                                        "cpu_high":  80.0,
+                                        "cpu_very_high":  92.0,
+                                        "mem_high":  80.0,
+                                        "mem_very_high":  92.0
+                                    },
+                     "quiet_hours":  {
+                                         "start":  1,
+                                         "end":  6
+                                     }
+                 },
+    "logging":  {
+                    "level":  "INFO",
+                    "to_file":  false,
+                    "file":  "dolores.log"
+                }
 }
