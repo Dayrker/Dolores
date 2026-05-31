@@ -1,8 +1,8 @@
-﻿<#  Dolores 卸载：移除 .venv 与桌面快捷方式（保留模型与配置）。 #>
+<#  Dolores uninstall: remove .venv and the Desktop shortcut (keeps models and config). #>
 $ErrorActionPreference = "SilentlyContinue"
 $Root = (Resolve-Path "$PSScriptRoot\..").Path
-Write-Host "[*] 移除虚拟环境 .venv …"
+Write-Host "[*] Removing virtual env .venv ..."
 Remove-Item -Recurse -Force (Join-Path $Root ".venv")
 $lnk = Join-Path ([Environment]::GetFolderPath("Desktop")) "Dolores.lnk"
-if (Test-Path $lnk) { Remove-Item -Force $lnk; Write-Host "[*] 已删除桌面快捷方式" }
-Write-Host "[OK] 卸载完成（models/ 与 config.json 已保留）。"
+if (Test-Path $lnk) { Remove-Item -Force $lnk; Write-Host "[*] Removed Desktop shortcut" }
+Write-Host "[OK] Uninstalled (models/ and config.json kept)."
