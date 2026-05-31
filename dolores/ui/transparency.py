@@ -43,6 +43,56 @@ def apply_transparent_background(
         return fallback_bg, False
 
 
+def prepare_chroma_key_image(
+    img: Image.Image,
+    transparent_threshold: int = 8,
+    faint_edge_threshold: int = 64,
+    edge_radius: int = 2,
+) -> Image.Image:
+    """Remove green-key color bleed from semi-transparent outside edges.
+
+    When Tk uses ``-transparentcolor``, semi-transparent anti-aliased pixels can
+    blend against ``TRANSPARENT_KEY`` before the window manager removes the key
+    color. Only edge pixels next to transparent background are adjusted; internal
+    semi-transparent details such as blush/highlights keep their original alpha.
+    """
+    rgba = img.convert("RGBA")
+    w, h = rgba.size
+    src = rgba.tobytes()
+    out = bytearray(src)
+    alpha = src[3::4]
+    changed = False
+
+    for y in range(h):
+        for x in range(w):
+            pos = y * w + x
+            a = alpha[pos]
+            if a == 0 or a == 255:
+                continue
+
+            touches_transparent = False
+            for ny in range(max(0, y - edge_radius), min(h, y + edge_radius + 1)):
+                row = ny * w
+                for nx in range(max(0, x - edge_radius), min(w, x + edge_radius + 1)):
+                    if nx == x and ny == y:
+                        continue
+                    if alpha[row + nx] <= transparent_threshold:
+                        touches_transparent = True
+                        break
+                if touches_transparent:
+                    break
+
+            if not touches_transparent:
+                continue
+
+            out[pos * 4 + 3] = 0 if a < faint_edge_threshold else 255
+            changed = True
+
+    if not changed:
+        return rgba
+    return Image.frombytes("RGBA", rgba.size, bytes(out))
+
+
 @lru_cache(maxsize=1)
 def _xshape_libs():
     x11_path = find_library("X11")

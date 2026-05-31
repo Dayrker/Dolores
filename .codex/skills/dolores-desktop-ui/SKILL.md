@@ -35,6 +35,15 @@ Use `dolores/ui/transparency.py` for windows that display RGBA Pillow images:
 
 - Call `apply_transparent_background(...)` during `Tk`/`Toplevel` setup.
 - Set Label/Canvas `bg` to the returned background color.
+- When chroma-key transparency is available, pass images through
+  `prepare_chroma_key_image(img)` before creating `ImageTk.PhotoImage`.
+  Otherwise semi-transparent anti-aliased edges can blend against the bright
+  green transparent key and appear as a green outline around the character,
+  bubble, or input.
+- `prepare_chroma_key_image(...)` should only adjust semi-transparent pixels
+  near fully transparent outside areas: drop very faint outer pixels, make
+  stronger outer edge pixels opaque, and preserve internal semi-transparent
+  details such as blush and highlights.
 - If chroma-key transparency is unavailable, call `apply_alpha_shape(win, img)`
   after geometry/image updates to crop the X11 top-level window to the image's
   alpha mask.
@@ -81,6 +90,23 @@ ImageDraw.Draw(img).ellipse((10, 10, 70, 70), fill=(255, 0, 0, 255))
 root.update_idletasks()
 print("xshape", apply_alpha_shape(root, img))
 root.destroy()
+PY
+```
+
+For chroma-key edge changes, run a pixel check against a default sprite:
+
+```bash
+/home/dayrker/anaconda3/envs/torch2.10/bin/python - <<'PY'
+from PIL import Image
+from dolores.ui.transparency import prepare_chroma_key_image
+
+src = Image.open("assets/sprites/default/idle_00.png").convert("RGBA")
+out = prepare_chroma_key_image(src)
+sa = src.getchannel("A").tobytes()
+oa = out.getchannel("A").tobytes()
+changed = sum(1 for a, b in zip(sa, oa) if a != b)
+kept = sum(1 for a, b in zip(sa, oa) if 0 < a < 255 and a == b)
+print("edge_changed", changed, "internal_partial_kept", kept)
 PY
 ```
 

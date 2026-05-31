@@ -16,7 +16,11 @@ from PIL import ImageTk
 from . import sprite as sprite_mod
 from .bubble import Bubble
 from .chat_input import ChatInput
-from .transparency import apply_alpha_shape, apply_transparent_background
+from .transparency import (
+    apply_alpha_shape,
+    apply_transparent_background,
+    prepare_chroma_key_image,
+)
 
 # Tk 后端不支持颜色键透明时的柔和兜底背景色。
 _BG = "#fdf4f8"
@@ -149,7 +153,8 @@ class PetWindow:
     # ---- 立绘渲染与动画 ----
     def _render_sprite(self) -> None:
         frame = self.animator.next_frame()
-        self._photo = ImageTk.PhotoImage(frame)
+        display_frame = prepare_chroma_key_image(frame) if self._has_chroma_transparency else frame
+        self._photo = ImageTk.PhotoImage(display_frame)
         self.canvas.itemconfigure(self._img_id, image=self._photo)
         if not self._has_chroma_transparency:
             shape_signature = frame.getchannel("A").tobytes()

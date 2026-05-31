@@ -11,7 +11,11 @@ from typing import Optional
 from PIL import Image, ImageDraw, ImageTk
 
 from . import text_renderer as tr
-from .transparency import apply_alpha_shape, apply_transparent_background
+from .transparency import (
+    apply_alpha_shape,
+    apply_transparent_background,
+    prepare_chroma_key_image,
+)
 
 
 def _rounded_card(
@@ -77,7 +81,8 @@ class Bubble:
             text, size=17, color=(70, 50, 85, 255), max_width=self.max_width_px
         )
         card = _rounded_card(text_img)
-        self._photo = ImageTk.PhotoImage(card)
+        display_card = prepare_chroma_key_image(card) if self._has_chroma_transparency else card
+        self._photo = ImageTk.PhotoImage(display_card)
         self.label.configure(image=self._photo)
         self.win.update_idletasks()
 
