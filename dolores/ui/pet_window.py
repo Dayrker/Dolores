@@ -4,7 +4,7 @@
 - set_mood(mood)：切换表情
 - say(text)：弹出气泡
 - 各种回调：on_click / on_request_chat / on_quit
-由于 conda Tk 无 Xft / 无 -transparentcolor，立绘窗用 -alpha，整窗背景设为接近的浅色。
+优先使用 Tk 的 transparentcolor 隐掉 RGBA 图片外的背景；不支持时退回浅色半透明背景。
 """
 from __future__ import annotations
 
@@ -16,8 +16,9 @@ from PIL import ImageTk
 from . import sprite as sprite_mod
 from .bubble import Bubble
 from .chat_input import ChatInput
+from .transparency import apply_alpha_shape, apply_transparent_background
 
-# 立绘窗背景色（因无法做纯透明，用一个柔和的接近白来弱化方框感）
+# Tk 后端不支持颜色键透明时的柔和兜底背景色。
 _BG = "#fdf4f8"
 
 
@@ -33,6 +34,7 @@ class PetWindow:
         self._phase = 0.0
         self._anim_running = True
         self._photo: Optional[ImageTk.PhotoImage] = None
+        self._shape_signature: Optional[bytes] = None
 
         # 回调（由 app 注入）
         self.on_request_chat: Callable[[], None] = lambda: None
@@ -42,17 +44,15 @@ class PetWindow:
         # 主窗
         self.root.overrideredirect(True)
         self.root.attributes("-topmost", bool(cfg.get("ui.topmost", True)))
-        try:
-            self.root.attributes("-alpha", 0.96)
-        except tk.TclError:
-            pass
-        self.root.configure(bg=_BG)
+        self._bg, self._has_chroma_transparency = apply_transparent_background(
+            self.root, _BG, fallback_alpha=0.96
+        )
 
         self.canvas = tk.Canvas(
             self.root,
             width=self.size,
             height=self.size + 8,
-            bg=_BG,
+            bg=self._bg,
             bd=0,
             highlightthickness=0,
         )
@@ -151,6 +151,10 @@ class PetWindow:
         frame = self.animator.next_frame()
         self._photo = ImageTk.PhotoImage(frame)
         self.canvas.itemconfigure(self._img_id, image=self._photo)
+        if not self._has_chroma_transparency:
+            shape_signature = frame.getchannel("A").tobytes()
+            if shape_signature != self._shape_signature and apply_alpha_shape(self.root, frame):
+                self._shape_signature = shape_signature
 
     def _animate(self) -> None:
         if not self._anim_running:

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dolores Desktop UI"
+  short_description: "Maintain DOLORES Tk desktop UI"
+  default_prompt: "Use $dolores-desktop-ui when modifying DOLORES desktop pet UI rendering, sprites, bubbles, or transparency."

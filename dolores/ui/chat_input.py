@@ -12,6 +12,7 @@ from typing import Callable, Optional
 from PIL import Image, ImageDraw, ImageTk
 
 from . import text_renderer as tr
+from .transparency import apply_alpha_shape, apply_transparent_background
 
 
 class ChatInput:
@@ -32,14 +33,13 @@ class ChatInput:
         self.win = tk.Toplevel(master)
         self.win.overrideredirect(True)
         self.win.attributes("-topmost", True)
-        try:
-            self.win.attributes("-alpha", 0.98)
-        except tk.TclError:
-            pass
+        self._bg, self._has_chroma_transparency = apply_transparent_background(
+            self.win, "#fffdfe", fallback_alpha=0.98
+        )
         self.win.withdraw()
 
         # 预览图标签
-        self.preview = tk.Label(self.win, bd=0, highlightthickness=0, bg="#fffdfe")
+        self.preview = tk.Label(self.win, bd=0, highlightthickness=0, bg=self._bg)
         self.preview.pack()
 
         # 隐藏的 Entry，仅用于捕获键入（StringVar 跟踪变化）
@@ -81,6 +81,8 @@ class ChatInput:
         self.win.update_idletasks()
         # 重新定位以适应高度变化
         self._reposition(img.size)
+        if not self._has_chroma_transparency:
+            apply_alpha_shape(self.win, img)
 
     def _reposition(self, size) -> None:
         w, h = size

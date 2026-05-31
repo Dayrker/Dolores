@@ -128,7 +128,7 @@ def load_config(path: str | None = None) -> Config:
     data = DEFAULTS
     if os.path.exists(path):
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, "r", encoding="utf-8-sig") as f:
                 user = json.load(f)
             data = _deep_merge(DEFAULTS, user)
             logger.debug("已加载配置: %s", path)
