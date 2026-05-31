@@ -66,6 +66,15 @@ Before changing window code, verify whether an artifact is:
 - A Tk window background issue: inspect `pet_window.py`, `bubble.py`,
   `chat_input.py`, and `transparency.py`.
 
+## Text Cropping
+
+Speech bubbles and chat input previews render text through
+`dolores/ui/text_renderer.py`. If Chinese text looks vertically shifted or the
+bottom is clipped, check Pillow's `multiline_textbbox()` offsets before changing
+outer card padding. Some fonts such as Microsoft YaHei report a positive
+`top`; `render_text()` must draw at `(padding_left - bbox[0],
+padding_top - bbox[1])` so the real ink bbox starts inside the RGBA image.
+
 ## Validation
 
 Use the project conda environment when available:
